@@ -2,8 +2,16 @@ const User = require("../models/User")
 
 const getUsers = async (req, res) => {
   try {
-
-    const users = await User.find().select("-password")
+    const { search } = req.query;
+    const filter = {};
+    if (search && search.trim()) {
+      const term = search.trim();
+      filter.$or = [
+        { name: { $regex: term, $options: "i" } },
+        { email: { $regex: term, $options: "i" } },
+      ];
+    }
+    const users = await User.find(filter).select("-password")
 
     res.status(200).json(users)
 

@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Chat App API",
+      title: "Chat Application Backend API",
       version: "1.0.0",
-      description: "API documentation for chat application"
+      description: "REST API for chat application with real-time Socket.IO and WebRTC support. See FRONTEND_GUIDE.md for implementation details."
     },
     servers: [
       {
@@ -20,6 +20,11 @@ const options = {
           scheme: "bearer",
           bearerFormat: "JWT"
         }
+      },
+      schemas: {
+        User: { type: "object", properties: { _id: { type: "string" }, name: { type: "string" }, email: { type: "string" }, profilePhoto: { type: "string" }, status: { type: "string" }, lastSeen: { type: "string", format: "date-time" } } },
+        Room: { type: "object", properties: { _id: { type: "string" }, isGroup: { type: "boolean" }, name: { type: "string" }, participants: { type: "array", items: { $ref: "#/components/schemas/User" } }, admin: { type: "string" } } },
+        Message: { type: "object", properties: { _id: { type: "string" }, sender: { $ref: "#/components/schemas/User" }, room: { type: "string" }, message: { type: "string" }, fileUrl: { type: "string" }, fileType: { type: "string" }, status: { type: "string" }, createdAt: { type: "string" } } }
       }
     }
   },

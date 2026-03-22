@@ -5,11 +5,15 @@ const router = express.Router();
 
 
 
-router.get("/profile", authMiddleware, (req, res) => {
-    res.json({
-        message: "Profile data",
-        userId: req.user.id
-    })
+router.get("/profile", authMiddleware, async (req, res) => {
+    try {
+        const User = require("../models/User");
+        const user = await User.findById(req.user.id).select("-password");
+        if (!user) return res.status(404).json({ message: "User not found" });
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 })
 
 /**
@@ -51,6 +55,7 @@ router.get("/profile", authMiddleware, (req, res) => {
  */
 
 router.post("/signup", signup);
+router.post("/register", signup); // Alias for frontend compatibility
 
 /**
  * @swagger

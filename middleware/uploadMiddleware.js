@@ -12,17 +12,29 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
+    // Allow images, videos, audio, and common documents (pdf, doc, zip)
+    const allowedTypes = [
+        "image/", 
+        "video/", 
+        "audio/", 
+        "application/pdf", 
+        "application/msword", 
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/zip",
+        "application/x-zip-compressed"
+    ];
+
+    if (allowedTypes.some(type => file.mimetype.startsWith(type) || file.mimetype === type)) {
         cb(null, true)
     } else {
-        cb(new Error("Only images are allowed"), false)
+        cb(new Error("File type not supported"), false)
     }
 }
 
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 })
 
 module.exports = upload
