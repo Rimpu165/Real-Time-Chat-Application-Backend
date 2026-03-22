@@ -1,5 +1,5 @@
 const express = require("express");
-const { createOrGetRoom, createGroupRoom, getUserRooms, addGroupMember, removeGroupMember, leaveGroup, getRoomSendStatus } = require("../controllers/roomController");
+const { createOrGetRoom, createGroupRoom, getUserRooms, addGroupMember, removeGroupMember, leaveGroup, getRoomSendStatus, deleteRoom } = require("../controllers/roomController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -161,5 +161,25 @@ router.put("/:roomId/remove", authMiddleware, removeGroupMember);
  *         description: Left successfully
  */
 router.put("/:roomId/leave", authMiddleware, leaveGroup);
+
+/**
+ * @swagger
+ * /api/rooms/{roomId}:
+ *   delete:
+ *     summary: Delete a chat room and all its messages
+ *     tags: [Rooms]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Chat deleted successfully
+ */
+router.delete("/:roomId", authMiddleware, deleteRoom);
 
 module.exports = router;

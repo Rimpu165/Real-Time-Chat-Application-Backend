@@ -221,6 +221,43 @@ const checkFriendship = async (req, res) => {
   }
 };
 
+// Remove friend (Unfriend)
+const removeFriend = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { friendId } = req.params;
+
+    const request = await FriendRequest.findOne({
+      status: "accepted",
+      $or: [
+        { fromUser: userId, toUser: friendId },
+        { fromUser: friendId, toUser: userId },
+      ],
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Friendship not found" });
+    }
+
+    // Delete the friend request document
+    await FriendRequest.findByIdAndDelete(request._id);
+
+    // Remove from both User.friends arrays
+    await User.findByIdAndUpdate(userId, { $pull: { friends: friendId } });
+    await User.findByIdAndUpdate(friendId, { $pull: { friends: userId } });
+
+    // Emit socket event
+    const receiverSocketId = getReceiverSocketId(friendId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("friendRemoved", { friendId: userId });
+    }
+
+    res.status(200).json({ message: "Friend removed successfully", friendId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   sendFriendRequest,
   acceptFriendRequest,
@@ -229,4 +266,5 @@ module.exports = {
   getPendingRequests,
   getSentRequests,
   checkFriendship,
+  removeFriend,
 };

@@ -208,4 +208,38 @@ const getRoomSendStatus = async (req, res) => {
   }
 };
 
-module.exports = { createOrGetRoom, createGroupRoom, getUserRooms, addGroupMember, removeGroupMember, leaveGroup, getRoomSendStatus };
+// Delete Chat (Room)
+const deleteRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user.id;
+
+    const room = await Room.findById(roomId);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    // Check if user is participant
+    if (!room.participants.includes(userId)) {
+      return res.status(403).json({ message: "Unauthorized to delete this chat" });
+    }
+
+    if (room.isGroup && room.admin.toString() !== userId) {
+      return res.status(403).json({ message: "Only the admin can delete a group chat" });
+    }
+
+    // Delete all messages
+    await Message.deleteMany({ room: roomId });
+
+    // Delete room
+    await Room.findByIdAndDelete(roomId);
+
+    // Emit event
+    const { io } = require("../socket/socket");
+    io.to(roomId).emit("chatDeleted", { roomId });
+
+    res.status(200).json({ message: "Chat deleted successfully", roomId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { createOrGetRoom, createGroupRoom, getUserRooms, addGroupMember, removeGroupMember, leaveGroup, getRoomSendStatus, deleteRoom };

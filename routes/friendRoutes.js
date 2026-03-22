@@ -8,6 +8,7 @@ const {
   getPendingRequests,
   getSentRequests,
   checkFriendship,
+  removeFriend,
 } = require("../controllers/friendController");
 
 const router = express.Router();
@@ -157,5 +158,27 @@ router.get("/sent", getSentRequests);
  *         description: Returns status (none|pending|sent|accepted|rejected)
  */
 router.get("/check/:targetUserId", checkFriendship);
+
+/**
+ * @swagger
+ * /api/friends/remove/{friendId}:
+ *   delete:
+ *     summary: Remove a friend (Unfriend)
+ *     tags: [Friends]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: friendId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Friend removed successfully
+ *       404:
+ *         description: Friendship not found
+ */
+router.delete("/remove/:friendId", removeFriend);
 
 module.exports = router;
