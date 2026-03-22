@@ -10,7 +10,12 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:5000"
+        url: "https://real-time-chat-application-backend-tjm8.onrender.com",
+        description: "Live Server"
+      },
+      {
+        url: "http://localhost:5000",
+        description: "Local Server"
       }
     ],
     components: {
