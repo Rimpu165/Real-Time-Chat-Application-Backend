@@ -14,18 +14,14 @@ const userSchema=new mongoose.Schema({
         type:String,
         required:true
     },
-    status:{
-        type:String,
-        default:"offline"
-    },
     profilePhoto: {
         type: String,
         default: ""
     },
-    lastSeen: {
-        type: Date,
-        default: Date.now
-    }
+    friends: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    }]
 },{
     timestamps:true
 })
