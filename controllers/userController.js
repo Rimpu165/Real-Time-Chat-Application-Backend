@@ -47,7 +47,7 @@ const uploadProfilePhoto = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { profilePhoto: photoUrl },
-      { new: true }
+      { returnDocument: 'after' }
     ).select("-password")
 
     if (!user) {
@@ -71,7 +71,7 @@ const updateUser = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { name, status },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).select("-password")
 
     if (!user) {

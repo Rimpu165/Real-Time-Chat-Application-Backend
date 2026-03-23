@@ -11,8 +11,17 @@ router.delete("/", authMiddleware, deleteUser)
 
 router.get("/:id", authMiddleware, getUserById)
 
-router.post("/profile-photo", authMiddleware, upload.single("photo"), uploadProfilePhoto)
-router.put("/profile-photo", authMiddleware, upload.single("photo"), uploadProfilePhoto)
+const handleUpload = (req, res, next) => {
+  upload.single("photo")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message })
+    }
+    next()
+  })
+}
+
+router.post("/profile-photo", authMiddleware, handleUpload, uploadProfilePhoto)
+router.put("/profile-photo", authMiddleware, handleUpload, uploadProfilePhoto)
 
 module.exports = router
 
