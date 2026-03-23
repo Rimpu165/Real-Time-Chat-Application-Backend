@@ -9,15 +9,30 @@ Node.js/Express backend for a real-time chat application with Socket.IO and WebR
 - Real-time messaging, typing, notifications
 - Voice & video calls (1-vs-1 WebRTC)
 - File attachments in messages
+- Admin Dashboard and Management API
 
 ## Quick Start
 
 ```bash
 npm install
-npm start
+npm run dev # or npm start
 ```
 
 Server runs on `http://localhost:5000`
+
+## Admin Capabilities
+
+The `/api/admin` routes provide administrative privileges:
+1. View overall dashboard statistics (total users, rooms, messages).
+2. Get complete lists of all users and rooms.
+3. Delete arbitrary users and their associated messages.
+4. Delete chat rooms and their associated messages.
+
+**Make yourself an Admin:**
+Once your database is connected, you can promote any registered user to an Admin via the provided terminal script:
+```bash
+node make-admin.js "user@example.com"
+```
 
 ## Documentation
 
