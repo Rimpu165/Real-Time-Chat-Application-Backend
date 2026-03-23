@@ -18,6 +18,11 @@ const userSchema=new mongoose.Schema({
         type: String,
         default: ""
     },
+    role: {
+        type: String,
+        enum: ["user", "admin"],
+        default: "user"
+    },
     friends: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"

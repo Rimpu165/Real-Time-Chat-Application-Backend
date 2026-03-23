@@ -1,0 +1,116 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+    getDashboardStats,
+    getAllUsers,
+    deleteUser,
+    getAllRooms,
+    deleteRoom
+} = require("../controllers/adminController");
+
+const authMiddleware = require("../middleware/authMiddleware");
+const adminMiddleware = require("../middleware/adminMiddleware");
+
+// All routes are protected by authMiddleware and adminMiddleware
+
+router.get("/stats", authMiddleware, adminMiddleware, getDashboardStats);
+
+router.get("/users", authMiddleware, adminMiddleware, getAllUsers);
+router.delete("/users/:id", authMiddleware, adminMiddleware, deleteUser);
+
+router.get("/rooms", authMiddleware, adminMiddleware, getAllRooms);
+router.delete("/rooms/:id", authMiddleware, adminMiddleware, deleteRoom);
+
+/**
+ * @swagger
+ * /api/admin/stats:
+ *   get:
+ *     summary: Get application statistics
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Application statistics retrieved successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     summary: Delete a user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: User not found
+ */
+
+/**
+ * @swagger
+ * /api/admin/rooms:
+ *   get:
+ *     summary: Get all rooms
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Rooms retrieved successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+
+/**
+ * @swagger
+ * /api/admin/rooms/{id}:
+ *   delete:
+ *     summary: Delete a room
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Room deleted successfully
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Room not found
+ */
+
+module.exports = router;

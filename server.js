@@ -7,6 +7,7 @@ const authRoutes=require("./routes/authRoutes")
 const userRoutes = require("./routes/userRoutes")
 const roomRoutes = require("./routes/roomRoutes")
 const friendRoutes = require("./routes/friendRoutes")
+const adminRoutes = require("./routes/adminRoutes")
 const path = require("path")
 require("dotenv").config()
 
@@ -25,6 +26,7 @@ app.use("/api/users", userRoutes)
 app.use("/api/rooms", roomRoutes)
 app.use("/api/friends", friendRoutes)
 app.use("/api/messages", messageRoutes)
+app.use("/api/admin", adminRoutes)
 
 app.use("/api-docs",swaggerUi.serve,swaggerUi.setup(swaggerSpec))
 
