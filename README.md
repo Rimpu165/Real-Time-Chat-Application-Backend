@@ -1,6 +1,6 @@
 # Chat Application Backend
 
-Node.js/Express backend for a real-time chat application with Socket.IO and WebRTC support.
+Real-Time Chat Application Backend using Node.js, Express.js, MongoDB, JWT authentication, Socket.IO, WebRTC voice/video calls, an Admin Dashboard, and Swagger API documentation.
 
 ## Features
 - JWT authentication

@@ -10,7 +10,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Real-Time Chat Application Backend using Node.js, Express.js, MongoDB, JWT authentication, WebRTC, Socket.IO, Admin Dashboard, and Swagger API documentation.",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
