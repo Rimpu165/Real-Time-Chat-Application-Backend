@@ -10,6 +10,10 @@ Real-Time Chat Application Backend using Node.js, Express.js, MongoDB, JWT authe
 - Voice & video calls (1-vs-1 WebRTC)
 - File attachments in messages (Stored on Cloudinary)
 - Admin Dashboard and Management API
+- Online/Offline Status & "Last Seen" timestamps
+- Message Read Receipts (Sent, Delivered, Seen)
+- Voice Notes & Audio Messages support
+- Message Reactions (Emojis)
 
 ## Quick Start
 
