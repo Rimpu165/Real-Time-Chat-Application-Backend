@@ -14,9 +14,9 @@ const sendMessage = async (req, res) => {
     if (!roomId) {
       return res.status(400).json({ message: "Room ID is required" });
     }
-    
+
     if (!hasMessage && !hasFile) {
-        return res.status(400).json({ message: "Message content or a file is required" });
+      return res.status(400).json({ message: "Message content or a file is required" });
     }
 
     // --- One-message limit for non-friends (direct chat only) ---
@@ -47,14 +47,14 @@ const sendMessage = async (req, res) => {
     let fileName = "";
 
     if (hasFile) {
-        fileUrl = `/uploads/${req.file.filename}`;
-        fileName = req.file.originalname;
-        // Determine general file type
-        const mime = req.file.mimetype;
-        if (mime.startsWith("image/")) fileType = "image";
-        else if (mime.startsWith("video/")) fileType = "video";
-        else if (mime.startsWith("audio/")) fileType = "audio";
-        else fileType = "document";
+      fileUrl = req.file.path;
+      fileName = req.file.originalname || req.file.filename;
+      // Determine general file type
+      const mime = req.file.mimetype;
+      if (mime.startsWith("image/")) fileType = "image";
+      else if (mime.startsWith("video/")) fileType = "video";
+      else if (mime.startsWith("audio/")) fileType = "audio";
+      else fileType = "document";
     }
 
     const newMessage = new Message({
@@ -74,8 +74,8 @@ const sendMessage = async (req, res) => {
 
     // Populate sender info and reply info before emitting
     await newMessage.populate([
-        { path: "sender", select: "name profilePhoto" },
-        { path: "replyTo", select: "message sender", populate: { path: "sender", select: "name" } }
+      { path: "sender", select: "name profilePhoto" },
+      { path: "replyTo", select: "message sender", populate: { path: "sender", select: "name" } }
     ]);
 
     // SOCKET IO - emit to room (users who joined)
@@ -121,74 +121,74 @@ const getMessages = async (req, res) => {
 };
 
 const markMessagesAsSeen = async (req, res) => {
-     try {
-         const { roomId } = req.params;
-         const userId = req.user.id;
+  try {
+    const { roomId } = req.params;
+    const userId = req.user.id;
 
-         // Find unread messages in the room where sender is NOT the current user
-         const filter = {
-             room: roomId,
-             sender: { $ne: userId },
-             status: { $ne: "seen" }
-         };
+    // Find unread messages in the room where sender is NOT the current user
+    const filter = {
+      room: roomId,
+      sender: { $ne: userId },
+      status: { $ne: "seen" }
+    };
 
-         // Note: in older Mongoose, updateMany might not return modified count easily, this will just update them all
-         await Message.updateMany(filter, { status: "seen" });
+    // Note: in older Mongoose, updateMany might not return modified count easily, this will just update them all
+    await Message.updateMany(filter, { status: "seen" });
 
-         // Emit a socket event letting other users in the room know messages are seen
-         io.to(roomId).emit("messagesSeen", { roomId, byUser: userId });
+    // Emit a socket event letting other users in the room know messages are seen
+    io.to(roomId).emit("messagesSeen", { roomId, byUser: userId });
 
-         res.status(200).json({ message: "Messages marked as seen" });
-     } catch (error) {
-         res.status(500).json({ error: error.message });
-     }
+    res.status(200).json({ message: "Messages marked as seen" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 }
 
 const editMessage = async (req, res) => {
-    try {
-        const { messageId } = req.params;
-        const { newText } = req.body;
-        const userId = req.user.id;
+  try {
+    const { messageId } = req.params;
+    const { newText } = req.body;
+    const userId = req.user.id;
 
-        const message = await Message.findById(messageId);
-        
-        if (!message) return res.status(404).json({ message: "Message not found" });
-        if (message.sender.toString() !== userId) return res.status(403).json({ message: "Unauthorized to edit this message" });
-        if (message.isDeleted) return res.status(400).json({ message: "Cannot edit a deleted message" });
+    const message = await Message.findById(messageId);
 
-        message.message = newText;
-        message.isEdited = true;
-        await message.save();
+    if (!message) return res.status(404).json({ message: "Message not found" });
+    if (message.sender.toString() !== userId) return res.status(403).json({ message: "Unauthorized to edit this message" });
+    if (message.isDeleted) return res.status(400).json({ message: "Cannot edit a deleted message" });
 
-        io.to(message.room.toString()).emit("messageEdited", { messageId, newText: message.message, isEdited: true });
-        
-        res.status(200).json(message);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    message.message = newText;
+    message.isEdited = true;
+    await message.save();
+
+    io.to(message.room.toString()).emit("messageEdited", { messageId, newText: message.message, isEdited: true });
+
+    res.status(200).json(message);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 const deleteMessage = async (req, res) => {
-    try {
-        const { messageId } = req.params;
-        const userId = req.user.id;
+  try {
+    const { messageId } = req.params;
+    const userId = req.user.id;
 
-        const message = await Message.findById(messageId);
-        
-        if (!message) return res.status(404).json({ message: "Message not found" });
-        if (message.sender.toString() !== userId) return res.status(403).json({ message: "Unauthorized to delete this message" });
+    const message = await Message.findById(messageId);
 
-        message.isDeleted = true;
-        message.message = "This message was deleted"; // obfuscate message text
-        await message.save();
+    if (!message) return res.status(404).json({ message: "Message not found" });
+    if (message.sender.toString() !== userId) return res.status(403).json({ message: "Unauthorized to delete this message" });
 
-        // Let the room know the message was deleted
-        io.to(message.room.toString()).emit("messageDeleted", { messageId });
+    message.isDeleted = true;
+    message.message = "This message was deleted"; // obfuscate message text
+    await message.save();
 
-        res.status(200).json({ message: "Message deleted successfully" });
-    } catch (error) {
-         res.status(500).json({ error: error.message });
-    }
+    // Let the room know the message was deleted
+    io.to(message.room.toString()).emit("messageDeleted", { messageId });
+
+    res.status(200).json({ message: "Message deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 module.exports = { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage };

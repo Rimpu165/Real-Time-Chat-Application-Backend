@@ -1,21 +1,17 @@
-const multer = require("multer")
-const path = require("path")
-const fs = require("fs")
+const multer = require("multer");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-const uploadDir = path.join(__dirname, "..", "uploads")
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true })
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir)
-    },
-    filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname)
-        cb(null, `${req.user.id}-${Date.now()}${ext}`)
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: async (req, file) => {
+        return {
+            folder: "cloudinary",
+            resource_type: "auto",
+            public_id: `${req.user ? req.user.id : "user"}-${Date.now()}`
+        };
     }
-})
+});
 
 const fileFilter = (req, file, cb) => {
     // Allow images, videos, audio, and common documents (pdf, doc, zip)
@@ -43,4 +39,4 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 })
 
-module.exports = upload
+module.exports = upload;

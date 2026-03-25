@@ -42,7 +42,7 @@ const uploadProfilePhoto = async (req, res) => {
       return res.status(400).json({ message: "Please upload an image file" })
     }
 
-    const photoUrl = `/uploads/${req.file.filename}`
+    const photoUrl = req.file.path;
     
     const user = await User.findByIdAndUpdate(
       req.user.id,

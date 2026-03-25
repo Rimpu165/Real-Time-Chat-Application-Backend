@@ -6,7 +6,7 @@ const options = {
     info: {
       title: "Chat Application Backend API",
       version: "1.0.0",
-      description: "REST API for chat application with real-time Socket.IO and WebRTC support. See FRONTEND_GUIDE.md for implementation details."
+      description: "REST API for chat application with real-time Socket.IO, WebRTC support, and Cloudinary media uploads. See FRONTEND_GUIDE.md for implementation details."
     },
     servers: [
       {

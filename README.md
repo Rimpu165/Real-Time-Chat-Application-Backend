@@ -1,6 +1,6 @@
 # Chat Application Backend
 
-Real-Time Chat Application Backend using Node.js, Express.js, MongoDB, JWT authentication, Socket.IO, WebRTC voice/video calls, an Admin Dashboard, and Swagger API documentation.
+Real-Time Chat Application Backend using Node.js, Express.js, MongoDB, JWT authentication, Socket.IO, WebRTC voice/video calls, Cloudinary for media storage, an Admin Dashboard, and Swagger API documentation.
 
 ## Features
 - JWT authentication
@@ -8,7 +8,7 @@ Real-Time Chat Application Backend using Node.js, Express.js, MongoDB, JWT authe
 - Friend requests (one-message limit for non-friends)
 - Real-time messaging, typing, notifications
 - Voice & video calls (1-vs-1 WebRTC)
-- File attachments in messages
+- File attachments in messages (Stored on Cloudinary)
 - Admin Dashboard and Management API
 
 ## Quick Start
@@ -55,4 +55,7 @@ Create `.env` with:
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/chatdb
 JWT_SECRET=your_secret_key
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
