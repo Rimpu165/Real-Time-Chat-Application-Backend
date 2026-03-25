@@ -41,7 +41,22 @@ const messageSchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false
-    }
+    },
+    status: {
+      type: String,
+      enum: ["sent", "delivered", "seen"],
+      default: "sent"
+    },
+    audioDuration: {
+      type: Number,
+      default: 0
+    },
+    reactions: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        emoji: { type: String }
+      }
+    ]
   },
   { timestamps: true }
 );

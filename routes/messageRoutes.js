@@ -1,5 +1,5 @@
 const express = require("express");
-const { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage } = require("../controllers/messageController");
+const { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage, reactToMessage } = require("../controllers/messageController");
 const authMiddleware = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
@@ -124,5 +124,34 @@ router.put("/:messageId/edit", authMiddleware, editMessage);
  *         description: Message deleted
  */
 router.delete("/:messageId", authMiddleware, deleteMessage);
+
+/**
+ * @swagger
+ * /api/messages/{messageId}/react:
+ *   post:
+ *     summary: React to a specific message
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               emoji:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Message reaction updated
+ */
+router.post("/:messageId/react", authMiddleware, reactToMessage);
 
 module.exports = router;

@@ -29,7 +29,7 @@ const options = {
       schemas: {
         User: { type: "object", properties: { _id: { type: "string" }, name: { type: "string" }, email: { type: "string" }, profilePhoto: { type: "string" }, status: { type: "string" }, lastSeen: { type: "string", format: "date-time" } } },
         Room: { type: "object", properties: { _id: { type: "string" }, isGroup: { type: "boolean" }, name: { type: "string" }, participants: { type: "array", items: { $ref: "#/components/schemas/User" } }, admin: { type: "string" } } },
-        Message: { type: "object", properties: { _id: { type: "string" }, sender: { $ref: "#/components/schemas/User" }, room: { type: "string" }, message: { type: "string" }, fileUrl: { type: "string" }, fileType: { type: "string" }, status: { type: "string" }, createdAt: { type: "string" } } }
+        Message: { type: "object", properties: { _id: { type: "string" }, sender: { $ref: "#/components/schemas/User" }, room: { type: "string" }, message: { type: "string" }, fileUrl: { type: "string" }, fileType: { type: "string" }, status: { type: "string" }, audioDuration: { type: "number" }, reactions: { type: "array", items: { type: "object", properties: { user: { $ref: "#/components/schemas/User" }, emoji: { type: "string" } } } }, createdAt: { type: "string" } } }
       }
     }
   },

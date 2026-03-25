@@ -26,7 +26,16 @@ const userSchema=new mongoose.Schema({
     friends: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
-    }]
+    }],
+    status: {
+        type: String,
+        enum: ["online", "offline"],
+        default: "offline"
+    },
+    lastSeen: {
+        type: Date,
+        default: Date.now
+    }
 },{
     timestamps:true
 })

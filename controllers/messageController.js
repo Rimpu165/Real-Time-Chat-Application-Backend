@@ -5,7 +5,7 @@ const { areFriends } = require("../utils/friendUtils");
 
 const sendMessage = async (req, res) => {
   try {
-    const { roomId, message, replyTo } = req.body;
+    const { roomId, message, replyTo, audioDuration } = req.body;
     const senderId = req.user.id; // from auth middleware
 
     const hasMessage = message && message.trim() !== "";
@@ -64,7 +64,8 @@ const sendMessage = async (req, res) => {
       fileUrl,
       fileType,
       fileName,
-      replyTo: replyTo || null
+      replyTo: replyTo || null,
+      audioDuration: audioDuration || 0
     });
 
     await newMessage.save();
@@ -191,4 +192,44 @@ const deleteMessage = async (req, res) => {
   }
 };
 
-module.exports = { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage };
+const reactToMessage = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { emoji } = req.body;
+        const userId = req.user.id;
+
+        const message = await Message.findById(messageId);
+        
+        if (!message) return res.status(404).json({ message: "Message not found" });
+
+        // Check if user already reacted with this emoji
+        const existingReactionIndex = message.reactions.findIndex(
+            r => r.user.toString() === userId && r.emoji === emoji
+        );
+
+        if (existingReactionIndex > -1) {
+            // Remove reaction if it already exists (toggle)
+            message.reactions.splice(existingReactionIndex, 1);
+        } else {
+            // Add new reaction
+            message.reactions.push({ user: userId, emoji });
+        }
+
+        await message.save();
+
+        // Populate user for the reaction returning to client
+        await message.populate("reactions.user", "name profilePhoto");
+
+        // Emit to room
+        io.to(message.room.toString()).emit("messageReaction", { 
+            messageId, 
+            reactions: message.reactions 
+        });
+
+        res.status(200).json(message);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage, reactToMessage };
