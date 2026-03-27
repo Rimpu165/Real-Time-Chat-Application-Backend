@@ -3,7 +3,11 @@ const User = require("../models/User")
 const getUsers = async (req, res) => {
   try {
     const { search } = req.query;
-    const filter = {};
+    const mongoose = require("mongoose");
+    const currentUserId = req.user.id || req.user._id;
+    const currentUserIdObj = new mongoose.Types.ObjectId(currentUserId);
+    const filter = { _id: { $ne: currentUserIdObj } }; // Exclude current user
+
     if (search && search.trim()) {
       const term = search.trim();
       filter.$or = [
@@ -11,14 +15,56 @@ const getUsers = async (req, res) => {
         { email: { $regex: term, $options: "i" } },
       ];
     }
-    const users = await User.find(filter).select("-password")
+    
+    // Get all users (except current one)
+    const users = await User.find(filter).select("name profilePhoto status lastSeen");
 
-    res.status(200).json(users)
+    // Get all friend requests involving the current user to merge status
+    const FriendRequest = require("../models/FriendRequest");
+    const requests = await FriendRequest.find({
+        $or: [
+            { fromUser: currentUserId },
+            { toUser: currentUserId }
+        ]
+    });
+
+    const usersWithStatus = users.map(user => {
+        const u = user.toObject();
+        const userIdStr = user._id.toString();
+        
+        // Find if there's any request between current user and this user
+        const request = requests.find(r => 
+            r.fromUser.toString() === userIdStr || 
+            r.toUser.toString() === userIdStr
+        );
+
+        if (!request) {
+            u.friendshipStatus = "none";
+        } else {
+            if (request.status === "accepted") {
+                u.friendshipStatus = "friends";
+            } else if (request.status === "pending") {
+                if (request.fromUser.toString() === currentUserId.toString()) {
+                    u.friendshipStatus = "sent";
+                } else {
+                    u.friendshipStatus = "pending";
+                }
+            } else {
+                // For rejected or other statuses, allow re-sending
+                u.friendshipStatus = "none"; 
+            }
+        }
+        return u;
+    });
+
+
+    res.status(200).json(usersWithStatus);
 
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
 }
+
 
 const getUserById = async (req, res) => {
   try {

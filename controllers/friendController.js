@@ -126,6 +126,13 @@ const rejectFriendRequest = async (req, res) => {
     request.status = "rejected";
     await request.save();
 
+    // Socket: notify sender that request was rejected
+    const fromUserId = request.fromUser.toString();
+    const senderSocketId = getReceiverSocketId(fromUserId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("friendRequestRejected", { requestId: request._id, fromUserId: userId });
+    }
+
     res.status(200).json({ message: "Friend request rejected" });
   } catch (error) {
     res.status(500).json({ error: error.message });

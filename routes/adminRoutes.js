@@ -6,7 +6,9 @@ const {
     getAllUsers,
     deleteUser,
     getAllRooms,
-    deleteRoom
+    deleteRoom,
+    toggleBlockUser,
+    updateUserRole
 } = require("../controllers/adminController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -21,6 +23,9 @@ router.delete("/users/:id", authMiddleware, adminMiddleware, deleteUser);
 
 router.get("/rooms", authMiddleware, adminMiddleware, getAllRooms);
 router.delete("/rooms/:id", authMiddleware, adminMiddleware, deleteRoom);
+
+router.patch("/users/:id/block", authMiddleware, adminMiddleware, toggleBlockUser);
+router.patch("/users/:id/role", authMiddleware, adminMiddleware, updateUserRole);
 
 /**
  * @swagger
@@ -109,8 +114,48 @@ router.delete("/rooms/:id", authMiddleware, adminMiddleware, deleteRoom);
  *         description: Room deleted successfully
  *       403:
  *         description: Forbidden - Admin access required
- *       404:
- *         description: Room not found
+/**
+ * @swagger
+ * /api/admin/users/{id}/block:
+ *   patch:
+ *     summary: Toggle block/unblock status of a user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: User block status toggled successfully
+ */
+
+/**
+ * @swagger
+ * /api/admin/users/{id}/role:
+ *   patch:
+ *     summary: Update a user's role
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin]
+ *     responses:
+ *       200:
+ *         description: User role updated successfully
  */
 
 module.exports = router;

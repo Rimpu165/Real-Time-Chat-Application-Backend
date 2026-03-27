@@ -28,19 +28,26 @@ const sendMessage = async (req, res) => {
       if (otherParticipant) {
         const friends = await areFriends(senderId, otherParticipant.toString());
         if (!friends) {
-          const existingCount = await Message.countDocuments({
+          const myMessagesCount = await Message.countDocuments({
             room: roomId,
             sender: senderId,
           });
-          if (existingCount >= 1) {
+          const otherMessagesCount = await Message.countDocuments({
+            room: roomId,
+            sender: otherParticipant.toString(),
+          });
+
+          // Block if I already sent 1+ message AND they have NOT replied yet
+          if (myMessagesCount >= 1 && otherMessagesCount === 0) {
             return res.status(403).json({
               message:
-                "You can send only one message until they accept your friend request. Send a friend request to continue chatting.",
+                "Recipient hasn't replied yet. You can send only one initial message. Send a friend request to unlock unlimited chatting.",
             });
           }
         }
       }
     }
+
 
     let fileUrl = "";
     let fileType = "text";

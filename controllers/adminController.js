@@ -77,10 +77,47 @@ const deleteRoom = async (req, res) => {
     }
 };
 
+const toggleBlockUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        user.isBlocked = !user.isBlocked;
+        await user.save();
+        res.status(200).json({
+            message: `User ${user.isBlocked ? "blocked" : "unblocked"} successfully`,
+            user: { id: user._id, isBlocked: user.isBlocked }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const updateUserRole = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.body;
+        if (!["user", "admin"].includes(role)) {
+            return res.status(400).json({ message: "Invalid role" });
+        }
+        const user = await User.findByIdAndUpdate(id, { role }, { new: true });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json({ message: "User role updated successfully", user });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 module.exports = {
     getDashboardStats,
     getAllUsers,
     deleteUser,
     getAllRooms,
-    deleteRoom
+    deleteRoom,
+    toggleBlockUser,
+    updateUserRole
 };

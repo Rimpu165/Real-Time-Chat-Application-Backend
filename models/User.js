@@ -32,6 +32,10 @@ const userSchema=new mongoose.Schema({
         enum: ["online", "offline"],
         default: "offline"
     },
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
     lastSeen: {
         type: Date,
         default: Date.now
