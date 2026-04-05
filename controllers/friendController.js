@@ -265,6 +265,37 @@ const removeFriend = async (req, res) => {
   }
 };
 
+// Cancel a sent pending friend request
+const cancelSentRequest = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { targetUserId } = req.params;
+
+    const request = await FriendRequest.findOne({
+      fromUser: userId,
+      toUser: targetUserId,
+      status: "pending",
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Pending sent request not found" });
+    }
+
+    await FriendRequest.findByIdAndDelete(request._id);
+
+    const receiverSocketId = getReceiverSocketId(targetUserId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("friendRequestCancelled", {
+        fromUserId: userId,
+      });
+    }
+
+    res.status(200).json({ message: "Friend request cancelled" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   sendFriendRequest,
   acceptFriendRequest,
@@ -274,4 +305,5 @@ module.exports = {
   getSentRequests,
   checkFriendship,
   removeFriend,
+  cancelSentRequest,
 };

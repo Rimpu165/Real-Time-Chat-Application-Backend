@@ -9,6 +9,7 @@ const {
   getSentRequests,
   checkFriendship,
   removeFriend,
+  cancelSentRequest,
 } = require("../controllers/friendController");
 
 const router = express.Router();
@@ -180,5 +181,6 @@ router.get("/check/:targetUserId", checkFriendship);
  *         description: Friendship not found
  */
 router.delete("/remove/:friendId", removeFriend);
+router.delete("/cancel/:targetUserId", cancelSentRequest);
 
 module.exports = router;

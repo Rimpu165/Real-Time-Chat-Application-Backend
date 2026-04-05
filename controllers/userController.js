@@ -3,21 +3,30 @@ const User = require("../models/User")
 const getUsers = async (req, res) => {
   try {
     const { search } = req.query;
-    const mongoose = require("mongoose");
     const currentUserId = req.user.id || req.user._id;
-    const currentUserIdObj = new mongoose.Types.ObjectId(currentUserId);
-    const filter = { _id: { $ne: currentUserIdObj } }; // Exclude current user
+    
+    // Explicitly exclude current user by ID and email (if searching)
+    const filter = { 
+        _id: { $ne: currentUserId } 
+    };
 
     if (search && search.trim()) {
       const term = search.trim();
-      filter.$or = [
-        { name: { $regex: term, $options: "i" } },
-        { email: { $regex: term, $options: "i" } },
+      filter.$and = [
+        { _id: { $ne: currentUserId } },
+        {
+          $or: [
+            { name: { $regex: term, $options: "i" } },
+            { email: { $regex: term, $options: "i" } },
+          ]
+        }
       ];
+      // Clean up top-level _id if $and is used
+      delete filter._id;
     }
     
     // Get all users (except current one)
-    const users = await User.find(filter).select("name profilePhoto status lastSeen");
+    const users = await User.find(filter).select("name email profilePhoto status lastSeen");
 
     // Get all friend requests involving the current user to merge status
     const FriendRequest = require("../models/FriendRequest");

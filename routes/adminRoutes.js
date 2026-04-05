@@ -114,6 +114,8 @@ router.patch("/users/:id/role", authMiddleware, adminMiddleware, updateUserRole)
  *         description: Room deleted successfully
  *       403:
  *         description: Forbidden - Admin access required
+ */
+
 /**
  * @swagger
  * /api/admin/users/{id}/block:
@@ -126,6 +128,8 @@ router.patch("/users/:id/role", authMiddleware, adminMiddleware, updateUserRole)
  *       - in: path
  *         name: id
  *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: User block status toggled successfully
@@ -143,6 +147,8 @@ router.patch("/users/:id/role", authMiddleware, adminMiddleware, updateUserRole)
  *       - in: path
  *         name: id
  *         required: true
+ *         schema:
+ *           type: string
  *     requestBody:
  *       required: true
  *       content:
