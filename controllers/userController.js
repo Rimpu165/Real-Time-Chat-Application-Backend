@@ -156,4 +156,55 @@ const deleteUser = async (req, res) => {
   }
 }
 
-module.exports = { getUsers, getUserById, uploadProfilePhoto, updateUser, deleteUser }
+const toggleBlockUser = async (req, res) => {
+  try {
+    const currentUserId = req.user.id
+    const { targetUserId } = req.params
+
+    if (!targetUserId || String(targetUserId) === String(currentUserId)) {
+      return res.status(400).json({ message: "Invalid target user" })
+    }
+
+    const [me, target] = await Promise.all([
+      User.findById(currentUserId),
+      User.findById(targetUserId),
+    ])
+
+    if (!me || !target) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    const alreadyBlocked = (me.blockedUsers || []).some(
+      (id) => String(id) === String(targetUserId)
+    )
+
+    if (alreadyBlocked) {
+      me.blockedUsers = (me.blockedUsers || []).filter(
+        (id) => String(id) !== String(targetUserId)
+      )
+      await me.save()
+      return res.status(200).json({ blocked: false, message: "User unblocked" })
+    }
+
+    me.blockedUsers = [...(me.blockedUsers || []), targetUserId]
+
+    // Block implies break friend relation both sides.
+    me.friends = (me.friends || []).filter((id) => String(id) !== String(targetUserId))
+    target.friends = (target.friends || []).filter((id) => String(id) !== String(currentUserId))
+
+    await Promise.all([me.save(), target.save()])
+
+    return res.status(200).json({ blocked: true, message: "User blocked" })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+module.exports = {
+  getUsers,
+  getUserById,
+  uploadProfilePhoto,
+  updateUser,
+  deleteUser,
+  toggleBlockUser,
+}

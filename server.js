@@ -9,6 +9,7 @@ const userRoutes = require("./routes/userRoutes")
 const roomRoutes = require("./routes/roomRoutes")
 const friendRoutes = require("./routes/friendRoutes")
 const adminRoutes = require("./routes/adminRoutes")
+const callRoutes = require("./routes/callRoutes")
 const path = require("path")
 const { app, server } = require("./socket/socket")
 const messageRoutes = require("./routes/messageRoutes")
@@ -26,6 +27,23 @@ app.use("/api/rooms", roomRoutes)
 app.use("/api/friends", friendRoutes)
 app.use("/api/messages", messageRoutes)
 app.use("/api/admin", adminRoutes)
+app.use("/api/calls", callRoutes)
+
+app.get("/api/health/routes", (_req, res) => {
+    res.status(200).json({
+        ok: true,
+        routes: [
+            "/api/auth",
+            "/api/users",
+            "/api/rooms",
+            "/api/friends",
+            "/api/messages",
+            "/api/admin",
+            "/api/calls"
+        ],
+        timestamp: new Date().toISOString()
+    })
+})
 
 app.use("/api-docs",swaggerUi.serve,swaggerUi.setup(swaggerSpec))
 

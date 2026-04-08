@@ -1,5 +1,7 @@
 const Room = require("../models/Room");
 const Message = require("../models/Message");
+const mongoose = require("mongoose");
+const User = require("../models/User");
 const { areFriends } = require("../utils/friendUtils");
 
 // Get or create a 1-to-1 room
@@ -76,13 +78,53 @@ const createGroupRoom = async (req, res) => {
 const getUserRooms = async (req, res) => {
   try {
     const userId = req.user.id;
+    const me = await User.findById(userId).select("blockedUsers");
+    const myBlockedSet = new Set((me?.blockedUsers || []).map((id) => String(id)));
 
     const rooms = await Room.find({ participants: userId })
-      .populate("participants", "name email profilePhoto status lastSeen")
+      .populate("participants", "name email profilePhoto status lastSeen blockedUsers")
       .populate("latestMessage")
       .sort({ updatedAt: -1 });
 
-    res.status(200).json(rooms);
+    const roomIds = rooms.map((room) => room._id);
+    let unreadCountMap = new Map();
+
+    if (roomIds.length > 0) {
+      const unreadRows = await Message.aggregate([
+        {
+          $match: {
+            room: { $in: roomIds },
+            sender: { $ne: new mongoose.Types.ObjectId(userId) },
+            status: { $ne: "seen" },
+          },
+        },
+        { $group: { _id: "$room", count: { $sum: 1 } } },
+      ]);
+
+      unreadCountMap = new Map(
+        unreadRows.map((row) => [String(row._id), Number(row.count || 0)])
+      );
+    }
+
+    const roomsWithUnread = rooms.map((room) => {
+      const plain = room.toObject();
+      if (!plain.isGroup) {
+        const other = (plain.participants || []).find(
+          (p) => String(p?._id) !== String(userId)
+        );
+        const blockedByMe = other ? myBlockedSet.has(String(other._id)) : false;
+        const blockedByOther = (other?.blockedUsers || []).some(
+          (id) => String(id) === String(userId)
+        );
+        plain.isBlocked = blockedByMe || blockedByOther;
+      } else {
+        plain.isBlocked = false;
+      }
+      plain.unreadCount = unreadCountMap.get(String(room._id)) || 0;
+      return plain;
+    });
+
+    res.status(200).json(roomsWithUnread);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -183,6 +225,27 @@ const getRoomSendStatus = async (req, res) => {
     const otherParticipant = room.participants.find((p) => p.toString() !== userId);
     if (!otherParticipant) {
       return res.status(200).json({ canSend: true });
+    }
+
+    const [me, otherUser] = await Promise.all([
+      User.findById(userId).select("blockedUsers"),
+      User.findById(otherParticipant.toString()).select("blockedUsers"),
+    ]);
+    const blockedByMe = (me?.blockedUsers || []).some(
+      (id) => String(id) === String(otherParticipant)
+    );
+    const blockedByOther = (otherUser?.blockedUsers || []).some(
+      (id) => String(id) === String(userId)
+    );
+    if (blockedByMe || blockedByOther) {
+      return res.status(200).json({
+        canSend: false,
+        blockedByMe,
+        blockedByOther,
+        message: blockedByMe
+          ? "You have blocked this person. Tap to unblock."
+          : "You are blocked by this user.",
+      });
     }
 
     const friends = await areFriends(userId, otherParticipant.toString());

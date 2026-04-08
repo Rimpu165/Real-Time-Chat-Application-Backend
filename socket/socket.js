@@ -73,11 +73,11 @@ io.on("connection", async (socket) => {
 
   // Receiver answers call
   socket.on("answerCall", (data) => {
-    const { to, signal } = data;
+    const { to, signal, answeredAt } = data;
     const callerSocketId = getReceiverSocketId(to);
 
     if (callerSocketId) {
-      io.to(callerSocketId).emit("callAccepted", signal);
+      io.to(callerSocketId).emit("callAccepted", { signal, answeredAt });
     }
   });
 

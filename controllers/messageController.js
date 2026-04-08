@@ -1,5 +1,6 @@
 const Message = require("../models/Message");
 const Room = require("../models/Room");
+const User = require("../models/User");
 const { io, emitToUser } = require("../socket/socket");
 const { areFriends } = require("../utils/friendUtils");
 
@@ -26,6 +27,24 @@ const sendMessage = async (req, res) => {
         (p) => p.toString() !== senderId
       );
       if (otherParticipant) {
+        const [senderUser, receiverUser] = await Promise.all([
+          User.findById(senderId).select("blockedUsers"),
+          User.findById(otherParticipant.toString()).select("blockedUsers"),
+        ]);
+
+        const blockedBySender = (senderUser?.blockedUsers || []).some(
+          (id) => String(id) === String(otherParticipant)
+        );
+        const blockedByReceiver = (receiverUser?.blockedUsers || []).some(
+          (id) => String(id) === String(senderId)
+        );
+
+        if (blockedBySender || blockedByReceiver) {
+          return res.status(403).json({
+            message: "Messaging is blocked between these users.",
+          });
+        }
+
         const friends = await areFriends(senderId, otherParticipant.toString());
         if (!friends) {
           const myMessagesCount = await Message.countDocuments({
@@ -132,6 +151,7 @@ const markMessagesAsSeen = async (req, res) => {
   try {
     const { roomId } = req.params;
     const userId = req.user.id;
+    const seenAt = new Date();
 
     // Find unread messages in the room where sender is NOT the current user
     const filter = {
@@ -144,7 +164,7 @@ const markMessagesAsSeen = async (req, res) => {
     await Message.updateMany(filter, { status: "seen" });
 
     // Emit a socket event letting other users in the room know messages are seen
-    io.to(roomId).emit("messagesSeen", { roomId, byUser: userId });
+    io.to(roomId).emit("messagesSeen", { roomId, byUser: userId, seenAt });
 
     res.status(200).json({ message: "Messages marked as seen" });
   } catch (error) {
@@ -239,4 +259,37 @@ const reactToMessage = async (req, res) => {
     }
 };
 
-module.exports = { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage, reactToMessage };
+const clearRoomMessages = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user.id;
+
+    const room = await Room.findById(roomId);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    const isParticipant = (room.participants || []).some(
+      (p) => String(p) === String(userId)
+    );
+    if (!isParticipant) return res.status(403).json({ message: "Unauthorized" });
+
+    await Message.deleteMany({ room: roomId });
+    room.latestMessage = undefined;
+    room.updatedAt = new Date();
+    await room.save();
+
+    io.to(roomId).emit("chatCleared", { roomId, byUser: userId });
+    res.status(200).json({ message: "Chat cleared successfully", roomId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  sendMessage,
+  getMessages,
+  markMessagesAsSeen,
+  editMessage,
+  deleteMessage,
+  reactToMessage,
+  clearRoomMessages,
+};

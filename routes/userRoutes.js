@@ -1,7 +1,7 @@
 const express = require("express")
 const router = express.Router()
 
-const { getUsers, getUserById, uploadProfilePhoto, updateUser, deleteUser } = require("../controllers/userController")
+const { getUsers, getUserById, uploadProfilePhoto, updateUser, deleteUser, toggleBlockUser } = require("../controllers/userController")
 const authMiddleware = require("../middleware/authMiddleware")
 const upload = require("../middleware/uploadMiddleware")
 
@@ -22,6 +22,7 @@ const handleUpload = (req, res, next) => {
 
 router.post("/profile-photo", authMiddleware, handleUpload, uploadProfilePhoto)
 router.put("/profile-photo", authMiddleware, handleUpload, uploadProfilePhoto)
+router.put("/block/:targetUserId", authMiddleware, toggleBlockUser)
 
 module.exports = router
 

@@ -1,5 +1,5 @@
 const express = require("express");
-const { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage, reactToMessage } = require("../controllers/messageController");
+const { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage, reactToMessage, clearRoomMessages } = require("../controllers/messageController");
 const authMiddleware = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
@@ -153,5 +153,6 @@ router.delete("/:messageId", authMiddleware, deleteMessage);
  *         description: Message reaction updated
  */
 router.post("/:messageId/react", authMiddleware, reactToMessage);
+router.delete("/room/:roomId/clear", authMiddleware, clearRoomMessages);
 
 module.exports = router;
