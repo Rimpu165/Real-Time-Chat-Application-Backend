@@ -1,4 +1,6 @@
 const User = require("../models/User")
+const mongoose = require("mongoose")
+const FriendRequest = require("../models/FriendRequest");
 
 const getUsers = async (req, res) => {
   try {
@@ -77,19 +79,43 @@ const getUsers = async (req, res) => {
 
 const getUserById = async (req, res) => {
   try {
+    const currentUserId = req.user.id || req.user._id;
+    const targetUserId = req.params.id;
 
-    const user = await User.findById(req.params.id).select("-password")
+    const target = await User.findById(targetUserId).select("-password");
+    if (!target) return res.status(404).json({ message: "User not found" });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" })
+    // Privacy Logic
+    const isFriend = target.friends.some(id => id.toString() === currentUserId.toString());
+    const isPrivate = target.isPrivate;
+
+    if (isPrivate && !isFriend && target._id.toString() !== currentUserId.toString()) {
+      // Return a stripped down version if private and not friends
+      return res.status(200).json({
+        _id: target._id,
+        name: target.name,
+        profilePhoto: target.profilePhoto,
+        isPrivate: true,
+        isFriend: false,
+        message: "This profile is private. Add them as a friend to see more."
+      });
     }
 
-    res.status(200).json(user)
+    // Mutual Friends Calculation
+    const me = await User.findById(currentUserId);
+    const myFriends = me.friends.map(f => f.toString());
+    const theirFriends = target.friends.map(f => f.toString());
+    const mutual = myFriends.filter(id => theirFriends.includes(id));
+    
+    const userObj = target.toObject();
+    userObj.mutualFriendsCount = mutual.length;
+    userObj.isFriend = isFriend;
 
+    res.status(200).json(userObj);
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-}
+};
 
 const uploadProfilePhoto = async (req, res) => {
   try {
@@ -121,26 +147,57 @@ const uploadProfilePhoto = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { name, status } = req.body
+    const { name, status, bio, isPrivate } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (status !== undefined) updates.status = status;
+    if (bio !== undefined) updates.bio = bio;
+    if (isPrivate !== undefined) updates.isPrivate = isPrivate;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { name, status },
+      updates,
       { returnDocument: 'after', runValidators: true }
-    ).select("-password")
+    ).select("-password");
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" })
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    res.status(200).json({
-      message: "User updated successfully",
-      user
-    })
+    res.status(200).json({ message: "Profile updated", user });
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-}
+};
+
+const uploadCoverPhoto = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No cover photo provided" });
+    const user = await User.findByIdAndUpdate(req.user.id, { coverPhoto: req.file.path }, { new: true }).select("-password");
+    res.status(200).json({ message: "Cover photo updated", user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const addToGallery = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) return res.status(400).json({ message: "No images provided" });
+    const filePaths = req.files.map(f => f.path);
+    const user = await User.findByIdAndUpdate(req.user.id, { $push: { gallery: { $each: filePaths } } }, { new: true }).select("-password");
+    res.status(200).json({ message: "Gallery updated", user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const removeFromGallery = async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    const user = await User.findByIdAndUpdate(req.user.id, { $pull: { gallery: imageUrl } }, { new: true }).select("-password");
+    res.status(200).json({ message: "Image removed from gallery", user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 const deleteUser = async (req, res) => {
   try {
@@ -204,6 +261,9 @@ module.exports = {
   getUsers,
   getUserById,
   uploadProfilePhoto,
+  uploadCoverPhoto,
+  addToGallery,
+  removeFromGallery,
   updateUser,
   deleteUser,
   toggleBlockUser,

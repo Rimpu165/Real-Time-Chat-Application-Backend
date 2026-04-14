@@ -1,7 +1,17 @@
 const express = require("express")
 const router = express.Router()
 
-const { getUsers, getUserById, uploadProfilePhoto, updateUser, deleteUser, toggleBlockUser } = require("../controllers/userController")
+const { 
+  getUsers, 
+  getUserById, 
+  uploadProfilePhoto, 
+  uploadCoverPhoto, 
+  addToGallery, 
+  removeFromGallery, 
+  updateUser, 
+  deleteUser, 
+  toggleBlockUser 
+} = require("../controllers/userController")
 const authMiddleware = require("../middleware/authMiddleware")
 const upload = require("../middleware/uploadMiddleware")
 
@@ -13,15 +23,30 @@ router.get("/:id", authMiddleware, getUserById)
 
 const handleUpload = (req, res, next) => {
   upload.single("photo")(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({ message: err.message })
-    }
+    if (err) return res.status(400).json({ message: err.message })
+    next()
+  })
+}
+
+const handleCoverUpload = (req, res, next) => {
+  upload.single("cover")(req, res, (err) => {
+    if (err) return res.status(400).json({ message: err.message })
+    next()
+  })
+}
+
+const handleGalleryUpload = (req, res, next) => {
+  upload.array("images", 10)(req, res, (err) => {
+    if (err) return res.status(400).json({ message: err.message })
     next()
   })
 }
 
 router.post("/profile-photo", authMiddleware, handleUpload, uploadProfilePhoto)
 router.put("/profile-photo", authMiddleware, handleUpload, uploadProfilePhoto)
+router.post("/cover-photo", authMiddleware, handleCoverUpload, uploadCoverPhoto)
+router.post("/gallery", authMiddleware, handleGalleryUpload, addToGallery)
+router.delete("/gallery", authMiddleware, removeFromGallery)
 router.put("/block/:targetUserId", authMiddleware, toggleBlockUser)
 
 module.exports = router

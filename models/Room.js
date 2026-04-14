@@ -24,6 +24,11 @@ const roomSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
+    description: {
+      type: String,
+      default: "",
+      trim: true
+    },
     latestMessage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",

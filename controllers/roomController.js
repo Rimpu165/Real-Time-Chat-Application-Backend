@@ -3,6 +3,7 @@ const Message = require("../models/Message");
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const { areFriends } = require("../utils/friendUtils");
+const { io, emitToUser } = require("../socket/socket");
 
 // Get or create a 1-to-1 room
 const createOrGetRoom = async (req, res) => {
@@ -28,6 +29,9 @@ const createOrGetRoom = async (req, res) => {
       });
       await room.save();
       room = await room.populate("participants", "name email profilePhoto status lastSeen");
+      
+      // Notify both participants about new direct room
+      room.participants.forEach(p => emitToUser(p._id.toString(), "roomCreated", room));
     }
 
     res.status(200).json(room);
@@ -39,8 +43,17 @@ const createOrGetRoom = async (req, res) => {
 // Create a Group Room (participants must be friends with creator)
 const createGroupRoom = async (req, res) => {
     try {
-        const { groupName, participants } = req.body;
+        let { groupName, participants } = req.body;
         const creatorId = req.user.id;
+
+        // If participants is a string (coming from form-data), parse it
+        if (typeof participants === "string") {
+            try {
+                participants = JSON.parse(participants);
+            } catch (e) {
+                participants = participants.split(",").map(id => id.trim());
+            }
+        }
 
         if (!groupName || !participants || participants.length === 0) {
              return res.status(400).json({ message: "Group name and participants are required" });
@@ -50,23 +63,35 @@ const createGroupRoom = async (req, res) => {
         const uniqueParticipants = [...new Set([creatorId, ...participants])];
         for (const pid of uniqueParticipants) {
             if (pid === creatorId) continue;
+            // Basic validation for MongoID
+            if (!mongoose.Types.ObjectId.isValid(pid)) continue;
+
             const friends = await areFriends(creatorId, pid);
             if (!friends) {
                 return res.status(403).json({
-                    message: `You can only add friends to a group. User ${pid} is not your friend. Send a friend request first.`,
+                    message: `You can only add friends to a group. User ${pid} is not your friend.`,
                 });
             }
         }
 
-        let room = new Room({
+        const roomData = {
             isGroup: true,
             name: groupName,
+            description: req.body.description || "",
             participants: uniqueParticipants,
             admin: creatorId
-        });
+        };
 
+        if (req.file) {
+            roomData.groupImage = req.file.path;
+        }
+
+        let room = new Room(roomData);
         await room.save();
         room = await room.populate("participants", "name email profilePhoto status lastSeen");
+        
+        // Notify all participants about the new group
+        uniqueParticipants.forEach(pid => emitToUser(pid, "roomCreated", room));
         
         res.status(201).json(room);
     } catch (error) {
@@ -156,6 +181,10 @@ const addGroupMember = async (req, res) => {
         
         await room.save();
         const updatedRoom = await Room.findById(roomId).populate("participants", "name email profilePhoto status lastSeen");
+        
+        // Notify all participants about update
+        updatedRoom.participants.forEach(p => emitToUser(p._id.toString(), "roomUpdated", updatedRoom));
+        
         res.status(200).json(updatedRoom);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -179,6 +208,12 @@ const removeGroupMember = async (req, res) => {
         
         await room.save();
         const updatedRoom = await Room.findById(roomId).populate("participants", "name email profilePhoto status lastSeen");
+        
+        // Notify removed user
+        emitToUser(removeUserId, "removedFromRoom", { roomId });
+        // Notify remaining participants
+        updatedRoom.participants.forEach(p => emitToUser(p._id.toString(), "roomUpdated", updatedRoom));
+
         res.status(200).json(updatedRoom);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -203,11 +238,49 @@ const leaveGroup = async (req, res) => {
         }
 
         await room.save();
+        
+        if (room.participants.length > 0) {
+            const updatedRoom = await Room.findById(roomId).populate("participants", "name email profilePhoto status lastSeen");
+            updatedRoom.participants.forEach(p => emitToUser(p._id.toString(), "roomUpdated", updatedRoom));
+        } else {
+            // Room is empty, just delete it
+            await Message.deleteMany({ room: roomId });
+            await Room.findByIdAndDelete(roomId);
+        }
+
         res.status(200).json({ message: "Left group successfully" });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
+// Update group name or image
+const updateGroupDetails = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { groupName, description } = req.body;
+        const currentUserId = req.user.id;
+
+        let room = await Room.findById(roomId);
+        if (!room) return res.status(404).json({ message: "Room not found" });
+        if (!room.isGroup) return res.status(400).json({ message: "Not a group chat" });
+        if (room.admin.toString() !== currentUserId) return res.status(403).json({ message: "Only admin can update group details" });
+
+        if (groupName) room.name = groupName;
+        if (description !== undefined) room.description = description;
+        if (req.file) room.groupImage = req.file.path;
+
+        await room.save();
+        room = await Room.findById(roomId).populate("participants", "name email profilePhoto status lastSeen");
+
+        // Notify all participants
+        room.participants.forEach(p => emitToUser(p._id.toString(), "roomUpdated", room));
+
+        res.status(200).json(room);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
 
 // Check if user can send more messages in a direct room (for one-message limit)
 const getRoomSendStatus = async (req, res) => {
@@ -253,7 +326,6 @@ const getRoomSendStatus = async (req, res) => {
       return res.status(200).json({ canSend: true });
     }
 
-    const Message = require("../models/Message");
     const count = await Message.countDocuments({
       room: roomId,
       sender: userId,
@@ -292,12 +364,13 @@ const deleteRoom = async (req, res) => {
     // Delete all messages
     await Message.deleteMany({ room: roomId });
 
+    const participants = [...room.participants];
+
     // Delete room
     await Room.findByIdAndDelete(roomId);
 
-    // Emit event
-    const { io } = require("../socket/socket");
-    io.to(roomId).emit("chatDeleted", { roomId });
+    // Emit event to all participants
+    participants.forEach(pid => emitToUser(pid.toString(), "roomDeleted", { roomId }));
 
     res.status(200).json({ message: "Chat deleted successfully", roomId });
   } catch (error) {
@@ -305,4 +378,14 @@ const deleteRoom = async (req, res) => {
   }
 };
 
-module.exports = { createOrGetRoom, createGroupRoom, getUserRooms, addGroupMember, removeGroupMember, leaveGroup, getRoomSendStatus, deleteRoom };
+module.exports = { 
+    createOrGetRoom, 
+    createGroupRoom, 
+    getUserRooms, 
+    addGroupMember, 
+    removeGroupMember, 
+    leaveGroup, 
+    getRoomSendStatus, 
+    deleteRoom,
+    updateGroupDetails
+};

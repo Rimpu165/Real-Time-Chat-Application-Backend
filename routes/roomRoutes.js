@@ -1,8 +1,18 @@
 const express = require("express");
-const { createOrGetRoom, createGroupRoom, getUserRooms, addGroupMember, removeGroupMember, leaveGroup, getRoomSendStatus, deleteRoom } = require("../controllers/roomController");
+const { createOrGetRoom, createGroupRoom, getUserRooms, addGroupMember, removeGroupMember, leaveGroup, getRoomSendStatus, deleteRoom, updateGroupDetails } = require("../controllers/roomController");
 const authMiddleware = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 
 const router = express.Router();
+
+const handleUpload = (req, res, next) => {
+  upload.single("groupImage")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ message: err.message })
+    }
+    next()
+  })
+}
 
 /**
  * @swagger
@@ -38,21 +48,23 @@ router.post("/direct", authMiddleware, createOrGetRoom);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
  *               groupName:
  *                 type: string
  *               participants:
- *                 type: array
- *                 items:
- *                   type: string
+ *                 type: string
+ *                 description: JSON string array of user IDs
+ *               groupImage:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: Group Room Created
  */
-router.post("/group", authMiddleware, createGroupRoom);
+router.post("/group", authMiddleware, handleUpload, createGroupRoom);
 
 /**
  * @swagger
@@ -161,6 +173,36 @@ router.put("/:roomId/remove", authMiddleware, removeGroupMember);
  *         description: Left successfully
  */
 router.put("/:roomId/leave", authMiddleware, leaveGroup);
+
+/**
+ * @swagger
+ * /api/rooms/{roomId}/update-details:
+ *   put:
+ *     summary: Update group name or image (admin only)
+ *     tags: [Rooms]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               groupName:
+ *                 type: string
+ *               groupImage:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Updated room
+ */
+router.put("/:roomId/update-details", authMiddleware, handleUpload, updateGroupDetails);
 
 /**
  * @swagger

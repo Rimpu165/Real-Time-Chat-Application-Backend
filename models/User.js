@@ -43,7 +43,23 @@ const userSchema=new mongoose.Schema({
     lastSeen: {
         type: Date,
         default: Date.now
-    }
+    },
+    bio: {
+        type: String,
+        default: "",
+        maxlength: 200
+    },
+    coverPhoto: {
+        type: String,
+        default: ""
+    },
+    isPrivate: {
+        type: Boolean,
+        default: false
+    },
+    gallery: [{
+        type: String
+    }]
 },{
     timestamps:true
 })
