@@ -59,7 +59,26 @@ const userSchema=new mongoose.Schema({
     },
     gallery: [{
         type: String
-    }]
+    }],
+    age: {
+        type: Number,
+        default: null
+    },
+    gender: {
+        type: String,
+        enum: ["Male", "Female", "Other", "Secret"],
+        default: "Secret"
+    },
+    location: {
+        type: String,
+        default: ""
+    },
+    socialLinks: {
+        instagram: { type: String, default: "" },
+        twitter: { type: String, default: "" },
+        github: { type: String, default: "" },
+        linkedin: { type: String, default: "" }
+    }
 },{
     timestamps:true
 })

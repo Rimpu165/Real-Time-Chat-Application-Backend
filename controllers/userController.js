@@ -147,12 +147,16 @@ const uploadProfilePhoto = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { name, status, bio, isPrivate } = req.body;
+    const { name, status, bio, isPrivate, age, gender, location, socialLinks } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (status !== undefined) updates.status = status;
     if (bio !== undefined) updates.bio = bio;
     if (isPrivate !== undefined) updates.isPrivate = isPrivate;
+    if (age !== undefined) updates.age = age;
+    if (gender !== undefined) updates.gender = gender;
+    if (location !== undefined) updates.location = location;
+    if (socialLinks !== undefined) updates.socialLinks = socialLinks;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
