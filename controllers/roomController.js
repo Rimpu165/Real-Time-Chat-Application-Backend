@@ -103,6 +103,22 @@ const createGroupRoom = async (req, res) => {
 const getUserRooms = async (req, res) => {
   try {
     const userId = req.user.id;
+
+    // Ensure Global Chat exists and user is participant
+    let globalChat = await Room.findOne({ isGroup: true, name: "Global Chat" });
+    if (!globalChat) {
+      globalChat = new Room({
+        isGroup: true,
+        name: "Global Chat",
+        description: "Global chat room for all users.",
+        participants: [userId]
+      });
+      await globalChat.save();
+    } else if (!globalChat.participants.map(p => String(p)).includes(String(userId))) {
+      globalChat.participants.push(userId);
+      await globalChat.save();
+    }
+
     const me = await User.findById(userId).select("blockedUsers");
     const myBlockedSet = new Set((me?.blockedUsers || []).map((id) => String(id)));
 
