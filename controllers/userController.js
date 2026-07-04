@@ -89,6 +89,30 @@ const getUserById = async (req, res) => {
     const isFriend = target.friends.some(id => id.toString() === currentUserId.toString());
     const isPrivate = target.isPrivate;
 
+    // Get friendship status and request ID
+    const request = await FriendRequest.findOne({
+      $or: [
+        { fromUser: currentUserId, toUser: targetUserId },
+        { fromUser: targetUserId, toUser: currentUserId }
+      ]
+    });
+
+    let friendshipStatus = "none";
+    let friendshipRequestId = null;
+
+    if (request) {
+      friendshipRequestId = request._id;
+      if (request.status === "accepted") {
+        friendshipStatus = "friends";
+      } else if (request.status === "pending") {
+        if (request.fromUser.toString() === currentUserId.toString()) {
+          friendshipStatus = "sent";
+        } else {
+          friendshipStatus = "pending";
+        }
+      }
+    }
+
     if (isPrivate && !isFriend && target._id.toString() !== currentUserId.toString()) {
       // Return a stripped down version if private and not friends
       return res.status(200).json({
@@ -97,6 +121,8 @@ const getUserById = async (req, res) => {
         profilePhoto: target.profilePhoto,
         isPrivate: true,
         isFriend: false,
+        friendshipStatus,
+        friendshipRequestId,
         message: "This profile is private. Add them as a friend to see more."
       });
     }
@@ -110,6 +136,8 @@ const getUserById = async (req, res) => {
     const userObj = target.toObject();
     userObj.mutualFriendsCount = mutual.length;
     userObj.isFriend = isFriend;
+    userObj.friendshipStatus = friendshipStatus;
+    userObj.friendshipRequestId = friendshipRequestId;
 
     res.status(200).json(userObj);
   } catch (error) {
