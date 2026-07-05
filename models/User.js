@@ -78,6 +78,14 @@ const userSchema=new mongoose.Schema({
         twitter: { type: String, default: "" },
         github: { type: String, default: "" },
         linkedin: { type: String, default: "" }
+    },
+    resetPasswordToken: {
+        type: String,
+        default: null
+    },
+    resetPasswordExpires: {
+        type: Date,
+        default: null
     }
 },{
     timestamps:true
