@@ -1,8 +1,60 @@
 const Message = require("../models/Message");
 const Room = require("../models/Room");
 const User = require("../models/User");
-const { io, emitToUser } = require("../socket/socket");
+const { io, emitToUser, getReceiverSocketId } = require("../socket/socket");
 const { areFriends } = require("../utils/friendUtils");
+const webpush = require("web-push");
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:rimpurajput165@gmail.com",
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn("VAPID keys are not fully configured in environment variables. Web Push Notifications will be disabled.");
+}
+
+const sendPushNotificationToUser = async (userId, payloadData) => {
+  try {
+    const user = await User.findById(userId).select("pushSubscription");
+    if (!user || !user.pushSubscription || user.pushSubscription.length === 0) {
+      return;
+    }
+
+    const payload = JSON.stringify({
+      title: payloadData.title,
+      body: payloadData.body,
+      data: {
+        roomId: payloadData.roomId,
+        url: `/chat?roomId=${payloadData.roomId}`
+      }
+    });
+
+    const invalidEndpoints = [];
+
+    const promises = user.pushSubscription.map(async (sub) => {
+      try {
+        await webpush.sendNotification(sub, payload);
+      } catch (err) {
+        console.error("Push notification delivery failed for endpoint:", sub.endpoint, err.message);
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          invalidEndpoints.push(sub.endpoint);
+        }
+      }
+    });
+
+    await Promise.all(promises);
+
+    if (invalidEndpoints.length > 0) {
+      await User.findByIdAndUpdate(userId, {
+        $pull: { pushSubscription: { endpoint: { $in: invalidEndpoints } } }
+      });
+    }
+  } catch (error) {
+    console.error("Error in sendPushNotificationToUser:", error);
+  }
+};
 
 const sendMessage = async (req, res) => {
   try {
@@ -122,6 +174,15 @@ const sendMessage = async (req, res) => {
             senderName: newMessage.sender?.name || "Someone",
             preview: preview + (preview.length >= 50 ? "..." : ""),
           });
+
+          const socketId = getReceiverSocketId(pid);
+          if (!socketId) {
+            sendPushNotificationToUser(pid, {
+              title: newMessage.sender?.name || "New Message",
+              body: preview + (preview.length >= 50 ? "..." : ""),
+              roomId: roomId.toString()
+            });
+          }
         }
       });
     }

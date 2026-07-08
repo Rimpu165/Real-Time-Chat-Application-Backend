@@ -10,7 +10,9 @@ const {
   removeFromGallery, 
   updateUser, 
   deleteUser, 
-  toggleBlockUser 
+  toggleBlockUser,
+  subscribePush,
+  unsubscribePush
 } = require("../controllers/userController")
 const authMiddleware = require("../middleware/authMiddleware")
 const upload = require("../middleware/uploadMiddleware")
@@ -18,6 +20,9 @@ const upload = require("../middleware/uploadMiddleware")
 router.get("/", authMiddleware, getUsers)
 router.put("/", authMiddleware, updateUser)
 router.delete("/", authMiddleware, deleteUser)
+
+router.post("/push-subscribe", authMiddleware, subscribePush)
+router.delete("/push-unsubscribe", authMiddleware, unsubscribePush)
 
 router.get("/:id", authMiddleware, getUserById)
 

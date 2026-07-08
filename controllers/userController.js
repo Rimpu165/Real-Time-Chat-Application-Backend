@@ -289,6 +289,61 @@ const toggleBlockUser = async (req, res) => {
   }
 }
 
+const subscribePush = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id
+    const subscription = req.body
+
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+      return res.status(400).json({ message: "Invalid push subscription object" })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    if (!user.pushSubscription) {
+      user.pushSubscription = []
+    }
+
+    const exists = user.pushSubscription.some(sub => sub.endpoint === subscription.endpoint)
+    if (!exists) {
+      user.pushSubscription.push(subscription)
+      await user.save()
+    }
+
+    res.status(200).json({ message: "Subscribed to push notifications successfully" })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+const unsubscribePush = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id
+    const endpoint = req.body.endpoint || req.query.endpoint
+
+    if (!endpoint) {
+      return res.status(400).json({ message: "Endpoint is required to unsubscribe" })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ message: "User not found" })
+    }
+
+    if (user.pushSubscription) {
+      user.pushSubscription = user.pushSubscription.filter(sub => sub.endpoint !== endpoint)
+      await user.save()
+    }
+
+    res.status(200).json({ message: "Unsubscribed from push notifications successfully" })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
 module.exports = {
   getUsers,
   getUserById,
@@ -299,4 +354,6 @@ module.exports = {
   updateUser,
   deleteUser,
   toggleBlockUser,
+  subscribePush,
+  unsubscribePush,
 }
