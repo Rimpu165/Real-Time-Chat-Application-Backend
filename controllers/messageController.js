@@ -58,17 +58,18 @@ const sendPushNotificationToUser = async (userId, payloadData) => {
 
 const sendMessage = async (req, res) => {
   try {
-    const { roomId, message, replyTo, audioDuration } = req.body;
+    const { roomId, message, replyTo, audioDuration, isForwarded, fileUrl: forwardedFileUrl, fileType: forwardedFileType, fileName: forwardedFileName } = req.body;
     const senderId = req.user.id; // from auth middleware
 
     const hasMessage = message && message.trim() !== "";
     const hasFile = req.file !== undefined;
+    const hasForwardedFile = forwardedFileUrl && forwardedFileUrl.trim() !== "";
 
     if (!roomId) {
       return res.status(400).json({ message: "Room ID is required" });
     }
 
-    if (!hasMessage && !hasFile) {
+    if (!hasMessage && !hasFile && !hasForwardedFile) {
       return res.status(400).json({ message: "Message content or a file is required" });
     }
 
@@ -120,9 +121,9 @@ const sendMessage = async (req, res) => {
     }
 
 
-    let fileUrl = "";
-    let fileType = "text";
-    let fileName = "";
+    let fileUrl = forwardedFileUrl || "";
+    let fileType = forwardedFileType || "text";
+    let fileName = forwardedFileName || "";
 
     if (hasFile) {
       fileUrl = req.file.path;
@@ -143,7 +144,8 @@ const sendMessage = async (req, res) => {
       fileType,
       fileName,
       replyTo: replyTo || null,
-      audioDuration: audioDuration || 0
+      audioDuration: audioDuration || 0,
+      isForwarded: isForwarded === true || isForwarded === "true"
     });
 
     await newMessage.save();
@@ -345,6 +347,82 @@ const clearRoomMessages = async (req, res) => {
   }
 };
 
+const translateMessage = async (req, res) => {
+  try {
+    const { text, targetLang } = req.body;
+    if (!text || !targetLang) {
+      return res.status(400).json({ message: "Text and targetLang are required" });
+    }
+
+    const https = require("https");
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    
+    https.get(url, (apiRes) => {
+      let data = "";
+      apiRes.on("data", (chunk) => {
+        data += chunk;
+      });
+      apiRes.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed && parsed[0]) {
+            const translatedText = parsed[0].map((item) => item[0]).join("");
+            res.status(200).json({ translatedText });
+          } else {
+            res.status(500).json({ message: "Translation response structure mismatch" });
+          }
+        } catch (err) {
+          res.status(500).json({ message: "Translation parsing error: " + err.message });
+        }
+      });
+    }).on("error", (err) => {
+      res.status(500).json({ message: "Translation network error: " + err.message });
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const togglePinMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const message = await Message.findById(messageId);
+    
+    if (!message) return res.status(404).json({ message: "Message not found" });
+
+    message.isPinned = !message.isPinned;
+    await message.save();
+
+    // Populate sender info
+    await message.populate("sender", "name profilePhoto");
+
+    // Emit socket event to room
+    io.to(message.room.toString()).emit("messagePinToggled", {
+      messageId: message._id,
+      isPinned: message.isPinned,
+      message,
+    });
+
+    res.status(200).json({ message: `Message ${message.isPinned ? "pinned" : "unpinned"} successfully`, isPinned: message.isPinned, msg: message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getPinnedMessages = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const pinnedMessages = await Message.find({ room: roomId, isPinned: true, isDeleted: false })
+      .populate("sender", "name profilePhoto")
+      .populate({ path: "replyTo", select: "message sender isDeleted", populate: { path: "sender", select: "name" } })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(pinnedMessages);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   sendMessage,
   getMessages,
@@ -353,4 +431,7 @@ module.exports = {
   deleteMessage,
   reactToMessage,
   clearRoomMessages,
+  translateMessage,
+  togglePinMessage,
+  getPinnedMessages,
 };

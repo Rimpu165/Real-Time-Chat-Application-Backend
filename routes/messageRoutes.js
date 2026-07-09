@@ -1,5 +1,5 @@
 const express = require("express");
-const { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage, reactToMessage, clearRoomMessages } = require("../controllers/messageController");
+const { sendMessage, getMessages, markMessagesAsSeen, editMessage, deleteMessage, reactToMessage, clearRoomMessages, translateMessage, togglePinMessage, getPinnedMessages } = require("../controllers/messageController");
 const authMiddleware = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
@@ -154,5 +154,8 @@ router.delete("/:messageId", authMiddleware, deleteMessage);
  */
 router.post("/:messageId/react", authMiddleware, reactToMessage);
 router.delete("/room/:roomId/clear", authMiddleware, clearRoomMessages);
+router.post("/translate", authMiddleware, translateMessage);
+router.put("/:messageId/pin", authMiddleware, togglePinMessage);
+router.get("/room/:roomId/pinned", authMiddleware, getPinnedMessages);
 
 module.exports = router;
