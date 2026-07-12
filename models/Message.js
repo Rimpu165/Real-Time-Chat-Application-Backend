@@ -64,7 +64,15 @@ const messageSchema = new mongoose.Schema(
         user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         emoji: { type: String }
       }
-    ]
+    ],
+    vanishTime: {
+      type: Number,
+      default: 0
+    },
+    seenAt: {
+      type: Date,
+      default: null
+    }
   },
   { timestamps: true }
 );

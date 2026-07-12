@@ -58,7 +58,7 @@ const sendPushNotificationToUser = async (userId, payloadData) => {
 
 const sendMessage = async (req, res) => {
   try {
-    const { roomId, message, replyTo, audioDuration, isForwarded, fileUrl: forwardedFileUrl, fileType: forwardedFileType, fileName: forwardedFileName } = req.body;
+    const { roomId, message, replyTo, audioDuration, isForwarded, fileUrl: forwardedFileUrl, fileType: forwardedFileType, fileName: forwardedFileName, vanishTime } = req.body;
     const senderId = req.user.id; // from auth middleware
 
     const hasMessage = message && message.trim() !== "";
@@ -145,7 +145,8 @@ const sendMessage = async (req, res) => {
       fileName,
       replyTo: replyTo || null,
       audioDuration: audioDuration || 0,
-      isForwarded: isForwarded === true || isForwarded === "true"
+      isForwarded: isForwarded === true || isForwarded === "true",
+      vanishTime: vanishTime ? Number(vanishTime) : 0
     });
 
     await newMessage.save();
@@ -223,8 +224,35 @@ const markMessagesAsSeen = async (req, res) => {
       status: { $ne: "seen" }
     };
 
-    // Note: in older Mongoose, updateMany might not return modified count easily, this will just update them all
-    await Message.updateMany(filter, { status: "seen" });
+    // Find if there are messages that need to vanish
+    const vanishMessages = await Message.find({
+      ...filter,
+      vanishTime: { $gt: 0 }
+    });
+
+    // Update all matching messages to seen
+    await Message.updateMany(filter, { status: "seen", seenAt });
+
+    // Schedule deletion timers for vanish messages
+    vanishMessages.forEach((msg) => {
+      setTimeout(async () => {
+        try {
+          await Message.findByIdAndDelete(msg._id);
+          
+          // Clean up Room's latestMessage reference if it points to this deleted message
+          const roomDoc = await Room.findById(roomId);
+          if (roomDoc && roomDoc.latestMessage && roomDoc.latestMessage.toString() === msg._id.toString()) {
+            const prevMsg = await Message.findOne({ room: roomId, _id: { $ne: msg._id } }).sort({ createdAt: -1 });
+            await Room.findByIdAndUpdate(roomId, { latestMessage: prevMsg ? prevMsg._id : null });
+          }
+
+          // Emit event to room
+          io.to(roomId).emit("messageVanished", { messageId: msg._id, roomId });
+        } catch (err) {
+          console.error("Error deleting vanish message on timer:", err);
+        }
+      }, msg.vanishTime * 1000);
+    });
 
     // Emit a socket event letting other users in the room know messages are seen
     io.to(roomId).emit("messagesSeen", { roomId, byUser: userId, seenAt });

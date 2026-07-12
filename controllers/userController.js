@@ -344,6 +344,148 @@ const unsubscribePush = async (req, res) => {
   }
 }
 
+const getUserStats = async (req, res) => {
+  try {
+    const currentUserId = req.user.id || req.user._id;
+    const Message = require("../models/Message");
+    const FriendRequest = require("../models/FriendRequest");
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const messagesToday = await Message.countDocuments({
+      sender: currentUserId,
+      createdAt: { $gte: startOfToday }
+    });
+
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - 7);
+
+    const newConnections = await FriendRequest.countDocuments({
+      $or: [
+        { fromUser: currentUserId },
+        { toUser: currentUserId }
+      ],
+      status: "accepted",
+      updatedAt: { $gte: startOfWeek }
+    });
+
+    res.status(200).json({
+      messagesToday,
+      newConnections
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getUserActivity = async (req, res) => {
+  try {
+    const currentUserId = req.user.id || req.user._id;
+    const FriendRequest = require("../models/FriendRequest");
+    const CallLog = require("../models/CallLog");
+
+    const formatRelativeTime = (date) => {
+      const now = new Date();
+      const diffMs = now - new Date(date);
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHrs = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHrs / 24);
+
+      if (diffMins < 1) return "Just now";
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHrs < 24) return `${diffHrs}h ago`;
+      if (diffDays === 1) return "Yesterday";
+      return `${diffDays} days ago`;
+    };
+
+    // 1. Pending Friend Requests (received)
+    const pendingRequests = await FriendRequest.find({
+      toUser: currentUserId,
+      status: "pending"
+    }).populate("fromUser", "name").sort({ createdAt: -1 }).limit(5);
+
+    const pendingActivities = pendingRequests.map(req => ({
+      id: `req-${req._id}`,
+      type: "request",
+      text: `${req.fromUser?.name || "Someone"} sent you a connection request`,
+      time: formatRelativeTime(req.createdAt),
+      createdAt: req.createdAt
+    }));
+
+    // 2. Accepted Friend Requests
+    const acceptedRequests = await FriendRequest.find({
+      $or: [
+        { fromUser: currentUserId },
+        { toUser: currentUserId }
+      ],
+      status: "accepted"
+    })
+    .populate("fromUser", "name")
+    .populate("toUser", "name")
+    .sort({ updatedAt: -1 })
+    .limit(5);
+
+    const acceptedActivities = acceptedRequests.map(req => {
+      const otherUser = req.fromUser._id.toString() === currentUserId.toString()
+        ? req.toUser
+        : req.fromUser;
+      return {
+        id: `acc-${req._id}`,
+        type: "accept",
+        text: `${otherUser?.name || "Someone"} accepted your connection request`,
+        time: formatRelativeTime(req.updatedAt),
+        createdAt: req.updatedAt
+      };
+    });
+
+    // 3. Recent Call Logs
+    const callLogs = await CallLog.find({
+      $or: [
+        { user: currentUserId },
+        { peer: currentUserId }
+      ]
+    })
+    .populate("peer", "name")
+    .populate("user", "name")
+    .sort({ createdAt: -1 })
+    .limit(5);
+
+    const callActivities = callLogs.map(log => {
+      const isOutgoing = log.user._id.toString() === currentUserId.toString();
+      const peerName = isOutgoing ? log.peer?.name : log.user?.name;
+      let text = "";
+      if (log.status === "missed") {
+        text = isOutgoing ? `Missed call to ${peerName || "Someone"}` : `Missed call from ${peerName || "Someone"}`;
+      } else {
+        text = isOutgoing ? `Outgoing ${log.type} call to ${peerName || "Someone"}` : `Incoming ${log.type} call from ${peerName || "Someone"}`;
+      }
+
+      return {
+        id: `call-${log._id}`,
+        type: "call",
+        text,
+        time: formatRelativeTime(log.createdAt),
+        createdAt: log.createdAt
+      };
+    });
+
+    // Combine and sort
+    let allActivities = [
+      ...pendingActivities,
+      ...acceptedActivities,
+      ...callActivities
+    ];
+
+    allActivities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    allActivities = allActivities.slice(0, 5);
+
+    res.status(200).json(allActivities);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getUsers,
   getUserById,
@@ -356,4 +498,6 @@ module.exports = {
   toggleBlockUser,
   subscribePush,
   unsubscribePush,
+  getUserStats,
+  getUserActivity,
 }

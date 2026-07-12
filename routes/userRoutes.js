@@ -12,12 +12,16 @@ const {
   deleteUser, 
   toggleBlockUser,
   subscribePush,
-  unsubscribePush
+  unsubscribePush,
+  getUserStats,
+  getUserActivity
 } = require("../controllers/userController")
 const authMiddleware = require("../middleware/authMiddleware")
 const upload = require("../middleware/uploadMiddleware")
 
 router.get("/", authMiddleware, getUsers)
+router.get("/stats", authMiddleware, getUserStats)
+router.get("/activity", authMiddleware, getUserActivity)
 router.put("/", authMiddleware, updateUser)
 router.delete("/", authMiddleware, deleteUser)
 
