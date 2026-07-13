@@ -1,6 +1,7 @@
 require("dotenv").config()
 const express = require("express")
 const cors = require("cors")
+const compression = require("compression")
 const connectDB=require("./config/db")
 const swaggerUi=require("swagger-ui-express")
 const swaggerSpec=require("./docs/swagger")
@@ -14,6 +15,7 @@ const path = require("path")
 const { app, server } = require("./socket/socket")
 const messageRoutes = require("./routes/messageRoutes")
 
+app.use(compression())
 app.use(express.json())
 app.use(cors())
 

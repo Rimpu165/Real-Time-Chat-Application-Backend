@@ -37,4 +37,7 @@ const roomSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Index to optimize chat list retrieval for participants
+roomSchema.index({ participants: 1 });
+
 module.exports = mongoose.model("Room", roomSchema);

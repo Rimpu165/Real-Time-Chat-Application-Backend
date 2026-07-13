@@ -77,4 +77,8 @@ const messageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for fast querying
+messageSchema.index({ room: 1, createdAt: 1 });
+messageSchema.index({ room: 1, isPinned: 1, isDeleted: 1 });
+
 module.exports = mongoose.model("Message", messageSchema);
