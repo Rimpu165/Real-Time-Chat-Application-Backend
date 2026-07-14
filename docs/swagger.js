@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       {
-        url: "https://real-time-chat-application-backend-tjm8.onrender.com",
+        url: "https://chatiq-backend-r4dv.onrender.com",
         description: "Live Server"
       },
       {
