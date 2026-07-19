@@ -101,6 +101,16 @@ io.on("connection", async (socket) => {
      }
   });
 
+  // Receiver rejects call — notify caller
+  socket.on("rejectCall", (data) => {
+     const { to } = data;
+     const callerSocketId = getReceiverSocketId(to);
+
+     if (callerSocketId) {
+         io.to(callerSocketId).emit("callRejected");
+     }
+  });
+
   // --- GROUP VOICE/VIDEO CALL (Socket.IO real-time) ---
   // Start group/room call - notifies all participants in the room
   socket.on("callRoom", (data) => {
